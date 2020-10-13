@@ -1,0 +1,22 @@
+html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.overlay {
+    position: absolute;
+    top: 80%;
+    left: 80%;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding-left: 5px;
+    padding-right: 5px;
+    text-align: center;
+    font-family: 'Roboto', sans-serif;
+    border-radius: 4px;
+}
+
+p {
+    margin-bottom: 0;
+}

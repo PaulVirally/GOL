@@ -1,0 +1,8 @@
+# Rust
+/target/
+
+# We want the pkg directory
+!/pkg
+
+# Vim
+*.swap

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Game of Life</title>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="styles.css"> 
+    </head>
+    <body>
+        <script type="module">
+            import init from './pkg/gol.js';
+
+            async function run() {
+                await init();
+            }
+
+            run();
+        </script>
+    </body>
+</html>

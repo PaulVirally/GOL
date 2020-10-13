@@ -1,0 +1,15 @@
+{
+  "name": "gol",
+  "collaborators": [
+    "Paul Virally <pvirally@gmail.com>"
+  ],
+  "version": "0.1.0",
+  "files": [
+    "gol_bg.wasm",
+    "gol.js",
+    "gol.d.ts"
+  ],
+  "module": "gol.js",
+  "types": "gol.d.ts",
+  "sideEffects": false
+}
