@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use std::mem;
 use rand::Rng;
-use web_sys::{WebGlBuffer, WebGl2RenderingContext};
+use web_sys::{WebGlBuffer, WebGlRenderingContext, WebGlProgram};
 use super::cell::Cell;
 
 #[wasm_bindgen]
@@ -11,7 +11,7 @@ pub struct Grid {
     cells: Vec<u8>, // Each cell is one bit => `cells` is 8 cells aligned
 
     vertices: Vec<f32>,
-    idxs: Vec<u32>,
+    idxs: Vec<u16>,
     vbo: Option<WebGlBuffer>,
     ebo: Option<WebGlBuffer>
 }
@@ -33,14 +33,14 @@ impl Grid {
             cells: cells,
 
             vertices: Vec::<f32>::new(),
-            idxs: Vec::<u32>::new(),
+            idxs: Vec::<u16>::new(),
             vbo: None,
             ebo: None
         }
     }
 
     /// Initializes the WebGL aspect of the Grid
-    pub fn init_gl(&mut self, context: &WebGl2RenderingContext, win_width: f32, win_height: f32) {
+    pub fn init_gl(&mut self, context: &WebGlRenderingContext, program: &WebGlProgram, win_width: f32, win_height: f32) {
         let cell_size = (win_width/(self.width as f32)).min(win_height/(self.height as f32));
         let cell_margin = 0.08 * cell_size;
 
@@ -80,14 +80,14 @@ impl Grid {
         // Indices
         for i in 0..(self.width as usize) * (self.height as usize) {
             // First triangle
-            self.idxs.push((i*4) as u32);
-            self.idxs.push(((i*4)+1) as u32);
-            self.idxs.push(((i*4)+2) as u32);
+            self.idxs.push((i*4) as u16);
+            self.idxs.push(((i*4)+1) as u16);
+            self.idxs.push(((i*4)+2) as u16);
 
             // Second triangle
-            self.idxs.push((i*4) as u32);
-            self.idxs.push(((i*4)+2) as u32);
-            self.idxs.push(((i*4)+3) as u32);
+            self.idxs.push((i*4) as u16);
+            self.idxs.push(((i*4)+2) as u16);
+            self.idxs.push(((i*4)+3) as u16);
         }
 
         // Create VBO and EBO
@@ -95,29 +95,28 @@ impl Grid {
         self.ebo = context.create_buffer();
 
         // Bind and set VBO
-        context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, self.vbo.as_ref());
+        context.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, self.vbo.as_ref());
         unsafe {
             let vbo_array = js_sys::Float32Array::view(&self.vertices);
-            context.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vbo_array, WebGl2RenderingContext::DYNAMIC_DRAW);
+            context.buffer_data_with_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, &vbo_array, WebGlRenderingContext::DYNAMIC_DRAW);
         }
 
         // Bind and set EBO
-        context.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, self.ebo.as_ref());
+        context.bind_buffer(WebGlRenderingContext::ELEMENT_ARRAY_BUFFER, self.ebo.as_ref());
         unsafe {
-            let ebo_array = js_sys::Uint32Array::view(&self.idxs);
-            context.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, &ebo_array, WebGl2RenderingContext::DYNAMIC_DRAW);
+            let ebo_array = js_sys::Uint16Array::view(&self.idxs);
+            context.buffer_data_with_array_buffer_view(WebGlRenderingContext::ELEMENT_ARRAY_BUFFER, &ebo_array, WebGlRenderingContext::STATIC_DRAW);
         }
 
         // Vertex position
-        context.vertex_attrib_pointer_with_i32(0, 2, WebGl2RenderingContext::FLOAT, false, 3 * mem::size_of::<f32>() as i32, 0);
-        context.enable_vertex_attrib_array(0);
+        let pos_idx = context.get_attrib_location(&program, "attr_position");
+        context.enable_vertex_attrib_array(pos_idx as u32);
+        context.vertex_attrib_pointer_with_i32(pos_idx as u32, 2, WebGlRenderingContext::FLOAT, false, 3 * mem::size_of::<f32>() as i32, 0);
 
         // Vertex color
-        context.vertex_attrib_pointer_with_i32(1, 1, WebGl2RenderingContext::FLOAT, false, 3 * mem::size_of::<f32>() as i32, 2 * mem::size_of::<f32>() as i32);
-        context.enable_vertex_attrib_array(1);
-
-        // Unbind VBO
-        context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
+        let color_idx = context.get_attrib_location(&program, "attr_color");
+        context.enable_vertex_attrib_array(color_idx as u32);
+        context.vertex_attrib_pointer_with_i32(color_idx as u32, 1, WebGlRenderingContext::FLOAT, false, 3 * mem::size_of::<f32>() as i32, 2 * mem::size_of::<f32>() as i32);
     }
 
     fn update_vertex_data(&mut self) {
@@ -137,38 +136,19 @@ impl Grid {
         }
     }
 
-    /// Draws the Grid on to the context
-    pub fn draw(&mut self, context: &WebGl2RenderingContext) {
+    /// Draws the Grid onto the context
+    pub fn draw(&mut self, context: &WebGlRenderingContext) {
         // Update the vertices array
         self.update_vertex_data();
         
-        // Bind and set VBO
-        context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, self.vbo.as_ref());
+        // Set VBO
         unsafe {
             let vbo_array = js_sys::Float32Array::view(&self.vertices);
-            context.buffer_sub_data_with_i32_and_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, 0, &vbo_array);
+            context.buffer_sub_data_with_i32_and_array_buffer_view(WebGlRenderingContext::ARRAY_BUFFER, 0, &vbo_array);
         }
         
-        // Bind and set EBO
-        context.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, self.ebo.as_ref());
-        unsafe {
-            let ebo_array = js_sys::Uint32Array::view(&self.idxs);
-            context.buffer_sub_data_with_i32_and_array_buffer_view(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, 0, &ebo_array);
-        }
-
-        // Vertex position
-        context.vertex_attrib_pointer_with_i32(0, 2, WebGl2RenderingContext::FLOAT, false, 3 * mem::size_of::<f32>() as i32, 0);
-        context.enable_vertex_attrib_array(0);
-
-        // Vertex color
-        context.vertex_attrib_pointer_with_i32(1, 1, WebGl2RenderingContext::FLOAT, false, 3 * mem::size_of::<f32>() as i32, 2 * mem::size_of::<f32>() as i32);
-        context.enable_vertex_attrib_array(1);
-
-        // Unbind VBO
-        context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-
         // Draw
-        context.draw_elements_with_i32(WebGl2RenderingContext::TRIANGLES, self.idxs.len() as i32, WebGl2RenderingContext::UNSIGNED_INT, 0);
+        context.draw_elements_with_i32(WebGlRenderingContext::TRIANGLES, self.idxs.len() as i32, WebGlRenderingContext::UNSIGNED_SHORT, 0);
     }
 
     /// Origin (0, 0) is at the top left with x increasing to the right, and y
